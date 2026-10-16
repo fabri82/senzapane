@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="it" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>senzapane - Gym Recomp</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkbg: '#0a0a0c',
+                        cardbg: '#16161a',
+                        cardhover: '#1e1e24',
+                        neoncyan: '#00f2fe',
+                        neonpink: '#ff007f',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel per JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-[#0a0a0c] text-slate-100 min-h-screen font-sans antialiased selection:bg-neonpink selection:text-white">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        const { Dumbbell, Timer, Flame, Trophy, Play, Check, Plus, Minus, RotateCcw, User, Upload, Download, ChevronRight, Settings } = lucide;
+
+        function App() {
+          const [activeTab, setActiveTab] = useState('workouts');
+          const [selectedDay, setSelectedDay] = useState(null);
+          const [activeWorkout, setActiveWorkout] = useState(null);
+          const [timer, setTimer] = useState(null);
+          const [isTimerRunning, setIsTimerRunning] = useState(false);
+          const [userLogo, setUserLogo] = useState(localStorage.getItem('senzapane_logo') || null);
+          const fileInputRef = useRef(null);
+
+          const [workouts, setWorkouts] = useState(() => {
+            const saved = localStorage.getItem('senzapane_workouts');
+            return saved ? JSON.parse(saved) : {
+              A: {
+                name: "Giorno A: Spinta + HIIT",
+                desc: "Petto, Spalle, Tricipiti & Brucia-grassi",
+                exercises: [
+                  { id: 1, name: "Squat Bilanciere", sets: 4, reps: "8-10", rest: 90, history: [{weight: 60, reps: 10}] },
+                  { id: 2, name: "Panca Piana Bilanciere", sets: 4, reps: "8-10", rest: 90, history: [{weight: 50, reps: 10}] },
+                  { id: 3, name: "Spinte Manubri su Panca 30°", sets: 3, reps: "10-12", rest: 60, history: [{weight: 18, reps: 12}] },
+                  { id: 4, name: "Alzate Laterali Manubri", sets: 4, reps: "12-15", rest: 60, history: [{weight: 8, reps: 15}] },
+                  { id: 5, name: "Tricipiti al Cavo (Pushdown)", sets: 3, reps: "10-12", rest: 60, history: [{weight: 25, reps: 12}] },
+                  { id: 6, name: "HIIT Tapis Roulant (Sprint)", sets: 5, reps: "30s veloci / 60s lenti", rest: 60, history: [{weight: 0, reps: 1}] }
+                ]
+              },
+              B: {
+                name: "Giorno B: Tirata + Lipolisi",
+                desc: "Schiena, Posturali, Bicipiti & Camminata",
+                exercises: [
+                  { id: 1, name: "Stacco Rumeno (Manubri/Bilanciere)", sets: 4, reps: "8-10", rest: 90, history: [{weight: 70, reps: 10}] },
+                  { id: 2, name: "Lat Machine Avanti", sets: 4, reps: "10-12", rest: 90, history: [{weight: 45, reps: 10}] },
+                  { id: 3, name: "Rematore con Manubrio", sets: 3, reps: "10-12", rest: 60, history: [{weight: 20, reps: 12}] },
+                  { id: 4, name: "Face Pull al Cavo", sets: 4, reps: "12-15", rest: 60, history: [{weight: 20, reps: 15}] },
+                  { id: 5, name: "Curl Bicipiti Manubri", sets: 3, reps: "10-12", rest: 60, history: [{weight: 12, reps: 12}] },
+                  { id: 6, name: "Camminata Inclinata (Tapis Roulant)", sets: 1, reps: "20 min (Pendenza 10%)", rest: 0, history: [{weight: 0, reps: 20}] }
+                ]
+              },
+              C: {
+                name: "Giorno C: Full Body + Conditioning",
+                desc: "Gambe, Spalle, Core & Kettlebell",
+                exercises: [
+                  { id: 1, name: "Leg Press 45°", sets: 4, reps: "10-12", rest: 90, history: [{weight: 120, reps: 12}] },
+                  { id: 2, name: "Military Press con Manubri", sets: 4, reps: "8-10", rest: 90, history: [{weight: 16, reps: 10}] },
+                  { id: 3, name: "Pulley Basso", sets: 3, reps: "10-12", rest: 60, history: [{weight: 40, reps: 12}] },
+                  { id: 4, name: "Dip / Piegamenti sulle Braccia", sets: 3, reps: "Max", rest: 60, history: [{weight: 0, reps: 12}] },
+                  { id: 5, name: "Affondi in Camminata", sets: 3, reps: "10 per gamba", rest: 60, history: [{weight: 14, reps: 10}] },
+                  { id: 6, name: "Kettlebell Swing", sets: 4, reps: "15 reps", rest: 60, history: [{weight: 16, reps: 15}] }
+                ]
+              }
+            };
+          });
+
+          const [historyLog, setHistoryLog] = useState(() => {
+            const saved = localStorage.getItem('senzapane_history');
+            return saved ? JSON.parse(saved) : [];
+          });
+
+          useEffect(() => {
+            localStorage.setItem('senzapane_workouts', JSON.stringify(workouts));
+          }, [workouts]);
+
+          useEffect(() => {
+            localStorage.setItem('senzapane_history', JSON.stringify(historyLog));
+          }, [historyLog]);
+
+          useEffect(() => {
+            let interval = null;
+            if (isTimerRunning && timer > 0) {
+              interval = setInterval(() => setTimer(t => t - 1), 1000);
+            } else if (timer === 0 && isTimerRunning) {
+              setIsTimerRunning(false);
+              if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            }
+            return () => clearInterval(interval);
+          }, [isTimerRunning, timer]);
+
+          const handleLogoUpload = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                setUserLogo(reader.result);
+                localStorage.setItem('senzapane_logo', reader.result);
+              };
+              reader.readAsDataURL(file);
+            }
+          };
+
+          const startWorkout = (dayKey) => {
+            const dayData = workouts[dayKey];
+            const initialSession = dayData.exercises.map(ex => ({
+              ...ex,
+              setsCompleted: Array(ex.sets).fill(false),
+              currentWeight: ex.history.length > 0 ? ex.history[ex.history.length - 1].weight : 10,
+              currentReps: ex.history.length > 0 ? ex.history[ex.history.length - 1].reps : 10
+            }));
+            setActiveWorkout({ dayKey, name: dayData.name, exercises: initialSession, startTime: Date.now() });
+          };
+
+          const updateSetParam = (exIndex, field, value) => {
+            const updated = { ...activeWorkout };
+            updated.exercises[exIndex][field] = Math.max(0, value);
+            setActiveWorkout(updated);
+          };
+
+          const toggleSetComplete = (exIndex, setIdx) => {
+            const updated = { ...activeWorkout };
+            updated.exercises[exIndex].setsCompleted[setIdx] = !updated.exercises[exIndex].setsCompleted[setIdx];
+            setActiveWorkout(updated);
+
+            if (updated.exercises[exIndex].setsCompleted[setIdx]) {
+              const restTime = updated.exercises[exIndex].rest || 60;
+              setTimer(restTime);
+              setIsTimerRunning(true);
+            }
+          };
+
+          const finishWorkout = () => {
+            const durationMinutes = Math.round((Date.now() - activeWorkout.startTime) / 60000) || 1;
+            const newRecord = {
+              date: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+              name: activeWorkout.name,
+              duration: durationMinutes,
+              calories: durationMinutes * 8 + 150
+            };
+            setHistoryLog([newRecord, ...historyLog]);
+            setActiveWorkout(null);
+            setSelectedDay(null);
+            setActiveTab('progress');
+          };
+
+          const exportBackup = () => {
+            const data = { workouts, historyLog, userLogo };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `senzapane-backup-${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+          };
+
+          const importBackup = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                try {
+                  const data = JSON.parse(event.target.result);
+                  if (data.workouts) setWorkouts(data.workouts);
+                  if (data.historyLog) setHistoryLog(data.historyLog);
+                  if (data.userLogo) {
+                    setUserLogo(data.userLogo);
+                    localStorage.setItem('senzapane_logo', data.userLogo);
+                  }
+                  alert("Backup importato con successo!");
+                } catch(err) {
+                  alert("File non valido");
+                }
+              };
+              reader.readAsText(file);
+            }
+          };
+
+          return (
+            <div className="max-w-md mx-auto min-h-screen flex flex-col pb-24 bg-[#0a0a0c] text-slate-100">
+              <header className="sticky top-0 z-40 bg-[#0a0a0c]/90 backdrop-blur border-b border-slate-800 p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3 cursor-pointer" onClick={() => fileInputRef.current.click()}>
+                  <div className="relative w-11 h-11 rounded-full p-[2px] bg-gradient-to-tr from-neoncyan to-neonpink">
+                    <div className="w-full h-full rounded-full bg-slate-900 overflow-hidden flex items-center justify-center">
+                      {userLogo ? (
+                        <img src={userLogo} alt="Logo" className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="w-6 h-6 text-slate-400" />
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <h1 className="text-lg font-black tracking-wider bg-gradient-to-r from-neoncyan to-neonpink bg-clip-text text-transparent uppercase">senzapane</h1>
+                    <p className="text-xs text-slate-400 font-medium">Recomp & Gym Pro</p>
+                  </div>
+                </div>
+                <input type="file" ref={fileInputRef} onChange={handleLogoUpload} accept="image/*" className="hidden" />
+
+                {isTimerRunning && (
+                  <div className="flex items-center gap-2 bg-neonpink/20 border border-neonpink text-neonpink px-3 py-1.5 rounded-full animate-pulse">
+                    <Timer className="w-4 h-4" />
+                    <span className="font-mono font-bold text-sm">{Math.floor(timer / 60)}:{String(timer % 60).padStart(2, '0')}</span>
+                  </div>
+                )}
+              </header>
+
+              <main className="flex-1 p-4">
+                {activeWorkout ? (
+                  <div className="space-y-4">
+                    <div className="bg-cardbg p-4 rounded-2xl border border-slate-800 flex items-center justify-between">
+                      <div>
+                        <span className="text-xs font-semibold text-neoncyan uppercase tracking-wider">Allenamento Live</span>
+                        <h2 className="text-lg font-bold">{activeWorkout.name}</h2>
+                      </div>
+                      <button onClick={() => setActiveWorkout(null)} className="text-xs text-slate-400 bg-slate-800 px-3 py-1.5 rounded-lg">Annulla</button>
+                    </div>
+
+                    {activeWorkout.exercises.map((ex, exIdx) => (
+                      <div key={ex.id} className="bg-cardbg p-4 rounded-2xl border border-slate-800 space-y-3">
+                        <div className="flex justify-between items-start">
+                          <h3 className="font-bold text-slate-200">{ex.name}</h3>
+                          <span className="text-xs text-slate-400 bg-slate-900 px-2.5 py-1 rounded-md">Target: {ex.reps}</span>
+                        </div>
+
+                        <div className="flex gap-4 items-center bg-slate-900/60 p-3 rounded-xl">
+                          <div className="flex-1">
+                            <span className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1">Carico (Kg)</span>
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => updateSetParam(exIdx, 'currentWeight', ex.currentWeight - 2.5)} className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center font-bold text-neoncyan"><Minus className="w-4 h-4"/></button>
+                              <span className="flex-1 text-center font-mono font-bold text-lg">{ex.currentWeight}</span>
+                              <button onClick={() => updateSetParam(exIdx, 'currentWeight', ex.currentWeight + 2.5)} className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center font-bold text-neoncyan"><Plus className="w-4 h-4"/></button>
+                            </div>
+                          </div>
+                          <div className="flex-1">
+                            <span className="text-[10px] text-slate-400 uppercase tracking-wide block mb-1">Ripetizioni</span>
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => updateSetParam(exIdx, 'currentReps', ex.currentReps - 1)} className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center font-bold text-neonpink"><Minus className="w-4 h-4"/></button>
+                              <span className="flex-1 text-center font-mono font-bold text-lg">{ex.currentReps}</span>
+                              <button onClick={() => updateSetParam(exIdx, 'currentReps', ex.currentReps + 1)} className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center font-bold text-neonpink"><Plus className="w-4 h-4"/></button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] text-slate-400 uppercase tracking-wide block mb-2">Serie ({ex.sets} totali)</span>
+                          <div className="flex gap-2 flex-wrap">
+                            {ex.setsCompleted.map((isDone, setIdx) => (
+                              <button
+                                key={setIdx}
+                                onClick={() => toggleSetComplete(exIdx, setIdx)}
+                                className={`flex-1 min-h-[44px] rounded-xl font-bold text-sm flex items-center justify-center gap-1 transition-all ${isDone ? 'bg-gradient-to-r from-neoncyan to-emerald-500 text-slate-950 shadow-lg shadow-neoncyan/20' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                              >
+                                <span>#{setIdx + 1}</span>
+                                {isDone && <Check className="w-4 h-4" />}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    <button onClick={finishWorkout} className="w-full py-4 rounded-2xl bg-gradient-to-r from-neoncyan to-neonpink text-slate-950 font-black tracking-wide text-base shadow-xl shadow-neoncyan/20 mt-6">
+                      TERMINA E SALVA ALLENAMENTO
+                    </button>
+                  </div>
+                ) : activeTab === 'workouts' ? (
+                  <div className="space-y-4">
+                    <div className="bg-gradient-to-r from-neoncyan/10 to-neonpink/10 p-5 rounded-3xl border border-slate-800">
+                      <h2 className="text-xl font-black mb-1">Protocollo Ricomposizione</h2>
+                      <p className="text-xs text-slate-400 leading-relaxed">Programma mirato a stimolare l'ipertrofia e massimizzare il dispendio lipidico.</p>
+                    </div>
+
+                    <div className="space-y-3">
+                      {Object.entries(workouts).map(([key, day]) => (
+                        <div key={key} className="bg-cardbg p-5 rounded-2xl border border-slate-800 flex items-center justify-between">
+                          <div>
+                            <span className="text-xs font-bold text-neoncyan uppercase tracking-wider">{key}</span>
+                            <h3 className="text-base font-bold text-slate-100">{day.name}</h3>
+                            <p className="text-xs text-slate-400 mt-0.5">{day.desc}</p>
+                          </div>
+                          <button onClick={() => startWorkout(key)} className="w-12 h-12 rounded-xl bg-gradient-to-tr from-neoncyan to-neonpink flex items-center justify-center text-slate-950 shadow-lg shadow-neoncyan/20">
+                            <Play className="w-5 h-5 fill-current ml-0.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="bg-cardbg p-5 rounded-3xl border border-slate-800">
+                      <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Trophy className="w-5 h-5 text-neoncyan" /> Storico & Statistiche</h2>
+                      {historyLog.length === 0 ? (
+                        <p className="text-sm text-slate-500 text-center py-6">Nessun allenamento registrato. Inizia ora!</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {historyLog.map((log, i) => (
+                            <div key={i} className="bg-slate-900/60 p-4 rounded-xl border border-slate-800/80 flex justify-between items-center">
+                              <div>
+                                <h4 className="font-bold text-sm text-slate-200">{log.name}</h4>
+                                <span className="text-xs text-slate-400">{log.date} • {log.duration} min</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 text-neonpink text-xs font-bold bg-neonpink/10 px-3 py-1.5 rounded-lg">
+                                <Flame className="w-3.5 h-3.5" />
+                                <span>~{log.calories} kcal</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="bg-cardbg p-5 rounded-3xl border border-slate-800 space-y-4">
+                      <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider">Backup e Trasferimento Dati</h2>
+                      <div className="flex gap-3">
+                        <button onClick={exportBackup} className="flex-1 py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 flex items-center justify-center gap-2 border border-slate-700">
+                          <Download className="w-4 h-4 text-neoncyan" /> Esporta Backup
+                        </button>
+                        <label className="flex-1 py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 flex items-center justify-center gap-2 border border-slate-700 cursor-pointer">
+                          <Upload className="w-4 h-4 text-neonpink" /> Importa Backup
+                          <input type="file" onChange={importBackup} accept=".json" className="hidden" />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </main>
+
+              <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#0a0a0c]/95 backdrop-blur border-t border-slate-800 p-3 flex justify-around z-40">
+                <button onClick={() => { setActiveTab('workouts'); setActiveWorkout(null); }} className={`flex flex-col items-center gap-1 px-5 py-1.5 rounded-xl transition-all ${activeTab === 'workouts' && !activeWorkout ? 'text-neoncyan bg-neoncyan/10' : 'text-slate-500'}`}>
+                  <Dumbbell className="w-5 h-5" />
+                  <span className="text-[10px] font-bold tracking-wider uppercase">Schede</span>
+                </button>
+                <button onClick={() => setActiveTab('progress')} className={`flex flex-col items-center gap-1 px-5 py-1.5 rounded-xl transition-all ${activeTab === 'progress' ? 'text-neonpink bg-neonpink/10' : 'text-slate-500'}`}>
+                  <Trophy className="w-5 h-5" />
+                  <span className="text-[10px] font-bold tracking-wider uppercase">Progressi</span>
+                </button>
+              </nav>
+            </div>
+          );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
